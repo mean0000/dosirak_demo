@@ -13,7 +13,7 @@
 3. 빌드/배포 설정:
    - **Build command: (비움)**
    - **Deploy command: `npx wrangler deploy`** (기본값 그대로)
-4. **Deploy** → `dosirak-demo.<서브도메인>.workers.dev` 로 접속되면 성공. (이 단계까진 데모/로컬 저장)
+4. **Deploy** → `dosirak.<서브도메인>.workers.dev` 로 접속되면 성공. (이 단계까진 데모/로컬 저장)
 
 ## 클라우드 저장(KV) 켜기
 1. 대시보드 → **Storage & Databases → KV → Create a namespace** (예: `dosirak`).
