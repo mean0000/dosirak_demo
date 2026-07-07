@@ -1,0 +1,14 @@
+# Claude Code 로컬 설정 (개인 권한 허용 목록)
+.claude/settings.local.json
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# 편집기
+.vscode/
+*.swp
+
+# Node (현재 없음, 혹시 대비)
+node_modules/
