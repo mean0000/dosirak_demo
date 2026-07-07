@@ -12,3 +12,6 @@ desktop.ini
 
 # Node (현재 없음, 혹시 대비)
 node_modules/
+
+# wrangler 로컬 캐시 (계정ID 등)
+.wrangler/
