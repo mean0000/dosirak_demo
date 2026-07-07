@@ -1,15 +1,26 @@
-// Cloudflare Pages Function — 도시락 주문 데이터 저장소 (KV 사용)
-// 경로: /api/data
-// KV 네임스페이스를 변수 이름 DOSIRAK 로 바인딩해야 합니다.
+// Cloudflare Worker — 사무실 도시락 주문판
+// - 정적 파일(public/index.html)은 [assets] 로 서빙
+// - /api/data 는 KV(DOSIRAK) 백엔드
+// KV 네임스페이스를 변수명 DOSIRAK 로 바인딩해야 클라우드 저장이 됩니다.
 
-export async function onRequest(context) {
-  const { request, env } = context;
+export default {
+  async fetch(request, env) {
+    const url = new URL(request.url);
+    if (url.pathname === "/api/data") {
+      return handleData(request, env);
+    }
+    // 그 외 모든 요청은 정적 자산으로
+    return env.ASSETS.fetch(request);
+  },
+};
+
+async function handleData(request, env) {
   const kv = env.DOSIRAK;
   const h = { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" };
   const json = (o, s) => new Response(JSON.stringify(o), { status: s || 200, headers: h });
 
   if (!kv) {
-    return json({ error: "KV 'DOSIRAK'가 연결되지 않았습니다. Cloudflare 대시보드 → 프로젝트 → Settings → Functions → KV namespace bindings 에서 변수명 DOSIRAK 로 네임스페이스를 연결한 뒤 다시 배포하세요." }, 500);
+    return json({ error: "KV 'DOSIRAK'가 연결되지 않았습니다. wrangler.toml 의 kv_namespaces 에 네임스페이스 id 를 채우고 다시 배포하세요." }, 500);
   }
 
   try {
@@ -39,7 +50,7 @@ export async function onRequest(context) {
       if (op === "choice") {
         if (!body.week || !body.pid) return json({ error: "week/pid 필요" }, 400);
         await kv.put("wk:" + body.week + ":p:" + body.pid, JSON.stringify({
-          choices: body.choices || {}, submitted: !!body.submitted, at: body.at || null
+          choices: body.choices || {}, submitted: !!body.submitted, at: body.at || null,
         }));
         return json({ ok: true });
       }
@@ -61,7 +72,7 @@ export async function onRequest(context) {
       if (op === "fill") { // 미응답자 일괄 처리
         for (const e of (body.entries || [])) {
           await kv.put("wk:" + body.week + ":p:" + e.pid, JSON.stringify({
-            choices: e.choices || {}, submitted: !!e.submitted, at: body.at || null
+            choices: e.choices || {}, submitted: !!e.submitted, at: body.at || null,
           }));
         }
         return json({ ok: true });

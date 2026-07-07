@@ -1,0 +1,16 @@
+name = "dosirak-demo"
+main = "worker.js"
+compatibility_date = "2025-09-01"
+
+# 정적 파일(public/index.html) 서빙 — worker.js 에서 env.ASSETS 로 접근
+[assets]
+directory = "./public"
+binding = "ASSETS"
+
+# ── 클라우드 저장(KV) ──────────────────────────────────────────
+# 1) Cloudflare 대시보드 → Storage & Databases → KV → Create namespace (예: dosirak)
+# 2) 생성된 네임스페이스의 ID 를 아래 id 에 붙여넣고, 이 3줄의 맨 앞 # 을 지운 뒤 저장·push
+# (붙이기 전까지는 데모(로컬) 모드로 동작합니다)
+# [[kv_namespaces]]
+# binding = "DOSIRAK"
+# id = "여기에_KV_네임스페이스_ID"
