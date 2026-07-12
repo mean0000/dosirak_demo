@@ -283,6 +283,7 @@
 (function(){
   "use strict";
   var API="/api/data";
+  var VERSION="1.2.0"; /* 수정 배포 시 버전을 올리면 페이지 하단에서 반영 여부 확인 가능 */
   var LS="dosirak.local.";
   var DAYS=[["mon","월"],["tue","화"],["wed","수"],["thu","목"],["fri","금"]];
   /* 메뉴 색은 CFG.menus 각 항목의 color 필드에 저장됨 (menuColor 헬퍼로 조회) */
@@ -435,7 +436,7 @@
     if(ADMIN){renderAdmin(m);}
     else if(!ME||!CFG.people.some(function(p){return p.id===ME;})){renderPicker(m);}
     else{renderPersonal(m);}
-    $("foot").textContent = CLOUD ? "☁️ 클라우드 저장 — 문의는 정민영 대리에게" : "💾 데모 모드 — 문의는 정민영 대리에게";
+    $("foot").textContent = (CLOUD ? "☁️ 클라우드 저장 — 문의는 정민영 대리에게" : "💾 데모 모드 — 문의는 정민영 대리에게")+" · v"+VERSION;
   }
   function renderBar(){
     var b=$("badge"); b.textContent=CLOUD?"☁️ 클라우드 연결됨":"💾 데모"; b.className="badge"+(CLOUD?" cloud":"");
