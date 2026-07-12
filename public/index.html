@@ -289,7 +289,7 @@
 (function(){
   "use strict";
   var API="/api/data";
-  var VERSION="1.5.4"; /* 수정 배포 시 버전을 올리면 페이지 하단에서 반영 여부 확인 가능 */
+  var VERSION="1.5.5"; /* 수정 배포 시 버전을 올리면 페이지 하단에서 반영 여부 확인 가능 */
   var LS="dosirak.local.";
   var DAYS=[["mon","월"],["tue","화"],["wed","수"],["thu","목"],["fri","금"]];
   /* 메뉴 색은 CFG.menus 각 항목의 color 필드에 저장됨 (menuColor 헬퍼로 조회) */
@@ -613,9 +613,11 @@
     var pinned=pinnedWeek();
     var untilTxt="";
     if(pinned&&CFG.activeWeekUntil){var u=CFG.activeWeekUntil.split("-");untilTxt=" · "+(+u[1])+"/"+(+u[2])+"(목) 자동 해제";}
-    var pin=el("div",{class:"savebar"});
-    pin.appendChild(el("p",{class:"hint",style:"margin:0",html:
+    ab.appendChild(el("p",{class:"hint",style:"margin:16px 0 0;padding-top:14px;border-top:1px solid var(--border);font-size:.8rem",html:
       "메인 표시 주: <b>"+(pinned?weekRange(pinned)+" 고정"+untilTxt:"자동")+"</b>"+(pinned?"":" (월~수 이번 주 · 목~일 다음 주)")}));
+    var pin=el("div",{class:"savebar",style:"margin-top:6px;padding-top:0;border-top:none"});
+    pin.appendChild(el("p",{class:"hint",style:"margin:0;flex:1 1 260px"},
+      "‹ › 로 원하는 주로 이동한 뒤 저장을 누르면 참여자 메인 화면이 그 주로 바뀌어요. 고정은 목요일이 되면 자동으로 풀려요."));
     var pbtns=el("div",{style:"display:flex;gap:8px;align-items:center;flex-wrap:wrap"});
     if(pinned)pbtns.appendChild(el("button",{class:"smallbtn",title:"고정 해제 — 자동 표시(월~수 이번 주, 목요일부터 다음 주)로 복귀",onclick:function(){
       delete CFG.activeWeek; delete CFG.activeWeekUntil; saveConfig();
@@ -626,8 +628,6 @@
     }},"📌 이 주를 메인에 저장"));
     pin.appendChild(pbtns);
     ab.appendChild(pin);
-    ab.appendChild(el("p",{class:"hint",style:"margin-top:8px"},
-      "‹ › 로 원하는 주로 이동한 뒤 저장을 누르면 참여자 메인 화면이 그 주로 바뀌어요. 고정은 목요일이 되면 자동으로 풀려요."));
     nav.appendChild(ab); root.appendChild(nav);
 
     // budget kpis
