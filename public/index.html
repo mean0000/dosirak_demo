@@ -545,10 +545,12 @@
   }
   function quickFill(val){ DAYS.forEach(function(D){if(DAYSM[D[0]])setMyDay(D[0],val);}); saveMe(false).then(function(){render();}); }
   function go(n){ WEEK=shift(WEEK,n*7); refresh().then(render); }
+  /* 메인 화면 기본 주 — 관리자가 고정(activeWeek)했으면 그 주, 없으면 달력 기준 이번 주 */
+  function homeWeek(){return (CFG&&CFG.activeWeek)||mondayKey(new Date());}
   function weekSeg(){
     var seg=el("div",{class:"wkseg"});
-    if(WEEK!==mondayKey(new Date()))
-      seg.appendChild(el("button",{class:"wktoday",title:"이번 주로",onclick:function(){WEEK=mondayKey(new Date());refresh().then(render);}},"이번 주"));
+    if(WEEK!==homeWeek())
+      seg.appendChild(el("button",{class:"wktoday",title:"주문 받는 주로",onclick:function(){WEEK=homeWeek();refresh().then(render);}},homeWeek()===mondayKey(new Date())?"이번 주":"주문 주간"));
     seg.appendChild(el("button",{class:"wkarr",onclick:function(){go(-1);},"aria-label":"이전 주"},"‹"));
     seg.appendChild(el("span",{class:"wklabel num"},weekRange(WEEK)));
     seg.appendChild(el("button",{class:"wkarr",onclick:function(){go(1);},"aria-label":"다음 주"},"›"));
@@ -571,7 +573,23 @@
         DAYSM[D[0]]=!DAYSM[D[0]]; apiPost({op:"days",week:WEEK,days:DAYSM,adminCode:ADMINCODE}).then(function(){render();});
       }}, el("div",{class:"wd"},D[1]), el("div",{class:"dt num"},(d.getMonth()+1)+"/"+d.getDate())));
     });
-    ab.appendChild(flags); nav.appendChild(ab); root.appendChild(nav);
+    ab.appendChild(flags);
+    // 메인 화면 표시 주 — 저장 버튼을 눌러야 참여자 메인 화면의 주가 바뀜
+    var pinned=CFG.activeWeek||null;
+    var pin=el("div",{class:"savebar"});
+    pin.appendChild(el("p",{class:"hint",style:"margin:0",html:
+      "메인 화면 표시 주: <b>"+(pinned?weekRange(pinned)+" (고정됨)":"자동 — 달력 기준 이번 주")+"</b><br>‹ › 로 원하는 주로 이동한 뒤 저장을 누르면 참여자 메인 화면이 그 주로 바뀌어요."}));
+    var pbtns=el("div",{style:"display:flex;gap:8px;align-items:center;flex-wrap:wrap"});
+    if(pinned)pbtns.appendChild(el("button",{class:"smallbtn",title:"고정 해제 — 달력 기준 이번 주를 자동 표시",onclick:function(){
+      delete CFG.activeWeek; saveConfig();
+    }},"자동으로 되돌리기"));
+    if(pinned===WEEK)pbtns.appendChild(el("button",{class:"saveb",disabled:true,style:"opacity:.55;cursor:default"},"✓ 메인 화면에 적용됨"));
+    else pbtns.appendChild(el("button",{class:"saveb",onclick:function(){
+      CFG.activeWeek=WEEK; saveConfig();
+    }},"📌 이 주를 메인 화면에 저장"));
+    pin.appendChild(pbtns);
+    ab.appendChild(pin);
+    nav.appendChild(ab); root.appendChild(nav);
 
     // budget kpis
     var kc=el("div",{class:"card"}); var kb=el("div",{class:"card-b"});
@@ -846,7 +864,7 @@
     var brand=document.querySelector(".brand"); if(!brand)return;
     brand.setAttribute("role","button"); brand.setAttribute("tabindex","0");
     brand.setAttribute("title","메인 화면으로"); brand.setAttribute("aria-label","메인 화면으로 돌아가기");
-    function home(){ ADMIN=false; ME=null; try{localStorage.removeItem("dosirak.me");}catch(e){} WEEK=mondayKey(new Date()); refresh().then(render); }
+    function home(){ ADMIN=false; ME=null; try{localStorage.removeItem("dosirak.me");}catch(e){} WEEK=homeWeek(); refresh().then(render); }
     brand.onclick=home;
     brand.addEventListener("keydown",function(e){ if(e.key==="Enter"||e.key===" "){ e.preventDefault(); home(); } });
   })();
@@ -856,6 +874,8 @@
     ME=null; try{ME=localStorage.getItem("dosirak.me");}catch(e){}
     WEEK=mondayKey(new Date());
     await refresh();
+    /* 관리자가 고정한 주가 있으면 메인 화면은 그 주를 보여줌 */
+    if(CFG.activeWeek&&CFG.activeWeek!==WEEK){WEEK=CFG.activeWeek;await refresh();}
     render();
   })();
 })();
