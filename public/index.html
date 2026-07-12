@@ -85,7 +85,7 @@
   .wkbanner .today{display:inline-flex;align-items:center;gap:7px;margin-top:13px;font-size:.82rem;font-weight:700;color:var(--accent-strong)}
   .wkbanner .today::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--accent-strong);flex:none}
   /* 주간 식단표 이미지 (네이버 소식 연동) — 이름 목록 아래 */
-  .feedimg{display:block;max-width:420px;margin:28px auto 0;padding-top:24px;border-top:1px solid var(--border);text-decoration:none;color:var(--ink-2)}
+  .feedimg{display:block;max-width:630px;margin:28px auto 0;padding-top:24px;border-top:1px solid var(--border);text-decoration:none;color:var(--ink-2)}
   .feedimg img{width:100%;border-radius:12px;border:1px solid var(--border);box-shadow:var(--shadow);display:block}
   .feedimg:hover img{filter:brightness(1.03)}
   .feedimg .cap{display:inline-block;margin-top:8px;font-size:.78rem;font-weight:700}
@@ -288,7 +288,7 @@
 (function(){
   "use strict";
   var API="/api/data";
-  var VERSION="1.5.1"; /* 수정 배포 시 버전을 올리면 페이지 하단에서 반영 여부 확인 가능 */
+  var VERSION="1.5.2"; /* 수정 배포 시 버전을 올리면 페이지 하단에서 반영 여부 확인 가능 */
   var LS="dosirak.local.";
   var DAYS=[["mon","월"],["tue","화"],["wed","수"],["thu","목"],["fri","금"]];
   /* 메뉴 색은 CFG.menus 각 항목의 color 필드에 저장됨 (menuColor 헬퍼로 조회) */
