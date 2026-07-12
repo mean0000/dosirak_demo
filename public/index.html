@@ -84,8 +84,8 @@
   .wkbanner .rng{font-size:clamp(1.4rem,4.5vw,1.72rem);font-weight:800;color:var(--ink);margin-top:7px;letter-spacing:-.02em;line-height:1.15}
   .wkbanner .today{display:inline-flex;align-items:center;gap:7px;margin-top:13px;font-size:.82rem;font-weight:700;color:var(--accent-strong)}
   .wkbanner .today::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--accent-strong);flex:none}
-  /* 주간 식단표 이미지 (네이버 소식 연동) */
-  .feedimg{display:block;max-width:420px;margin:0 auto 24px;text-decoration:none;color:var(--ink-2)}
+  /* 주간 식단표 이미지 (네이버 소식 연동) — 이름 목록 아래 */
+  .feedimg{display:block;max-width:420px;margin:28px auto 0;padding-top:24px;border-top:1px solid var(--border);text-decoration:none;color:var(--ink-2)}
   .feedimg img{width:100%;border-radius:12px;border:1px solid var(--border);box-shadow:var(--shadow);display:block}
   .feedimg:hover img{filter:brightness(1.03)}
   .feedimg .cap{display:inline-block;margin-top:8px;font-size:.78rem;font-weight:700}
@@ -288,7 +288,7 @@
 (function(){
   "use strict";
   var API="/api/data";
-  var VERSION="1.5.0"; /* 수정 배포 시 버전을 올리면 페이지 하단에서 반영 여부 확인 가능 */
+  var VERSION="1.5.1"; /* 수정 배포 시 버전을 올리면 페이지 하단에서 반영 여부 확인 가능 */
   var LS="dosirak.local.";
   var DAYS=[["mon","월"],["tue","화"],["wed","수"],["thu","목"],["fri","금"]];
   /* 메뉴 색은 CFG.menus 각 항목의 color 필드에 저장됨 (menuColor 헬퍼로 조회) */
@@ -477,14 +477,6 @@
       el("div",{class:"lab"},WEEK===calMon?"이번 주 주문":WEEK===shift(calMon,7)?"다음 주 주문":"주문 주간"),
       el("div",{class:"rng num"},rng),
       el("div",{class:"today num"},"오늘 "+todayStr)));
-    // 그 주 식단표 이미지 — 도시락반장 네이버 소식에서 자동으로 가져옴 (없으면 표시 안 함)
-    loadFeedImg(WEEK);
-    var fi=FEEDC[WEEK];
-    if(fi&&fi.url){
-      p.appendChild(el("a",{class:"feedimg",href:fi.url,target:"_blank",rel:"noopener",title:"새 탭에서 크게 보기"},
-        el("img",{src:fi.url,alt:fi.title||"주간 식단표",loading:"lazy"}),
-        el("span",{class:"cap"},"📋 "+(fi.title||"주간 식단표")+" · 도시락반장 소식")));
-    }
     p.appendChild(el("p",{class:"sub"},"👇 아래에서 본인 이름을 눌러 이번 주 메뉴를 고르세요"));
     var names=el("div",{class:"names"});
     CFG.people.forEach(function(pp){
@@ -494,7 +486,16 @@
       names.appendChild(el("button",{class:"namebtn",onclick:function(){ME=pp.id;localStorage.setItem("dosirak.me",pp.id);render();}},
         pp.name, el("span",{class:"st "+stt[0]},stt[1])));
     });
-    p.appendChild(names); wrap.appendChild(p); root.appendChild(wrap);
+    p.appendChild(names);
+    // 그 주 식단표 이미지 — 도시락반장 네이버 소식에서 자동으로 가져옴 (없으면 표시 안 함)
+    loadFeedImg(WEEK);
+    var fi=FEEDC[WEEK];
+    if(fi&&fi.url){
+      p.appendChild(el("a",{class:"feedimg",href:fi.url,target:"_blank",rel:"noopener",title:"새 탭에서 크게 보기"},
+        el("img",{src:fi.url,alt:fi.title||"주간 식단표",loading:"lazy"}),
+        el("span",{class:"cap"},"📋 "+(fi.title||"주간 식단표")+" · 도시락반장 소식")));
+    }
+    wrap.appendChild(p); root.appendChild(wrap);
   }
 
   function renderPersonal(root){
