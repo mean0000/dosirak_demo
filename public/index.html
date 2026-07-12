@@ -253,6 +253,7 @@
   .seg2 button{font-size:.82rem;font-weight:700;padding:7px 14px;background:var(--surface-2);color:var(--ink-2);border:none;cursor:pointer}
   .seg2 button.on{background:var(--accent-strong);color:var(--on-accent)}
   .saveb{font-size:.9rem;font-weight:800;padding:12px 24px;border-radius:10px;border:none;background:var(--accent-strong);color:var(--on-accent);cursor:pointer;transition:.15s;box-shadow:var(--shadow);flex:none}
+  .saveb.sm{font-size:.78rem;font-weight:700;padding:8px 13px;border-radius:9px}
   .saveb:hover{filter:brightness(1.06)}
   .saveb:active{transform:translateY(1px)}
   .savebar{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;margin-top:16px;padding-top:16px;border-top:1px solid var(--border)}
@@ -288,7 +289,7 @@
 (function(){
   "use strict";
   var API="/api/data";
-  var VERSION="1.5.2"; /* 수정 배포 시 버전을 올리면 페이지 하단에서 반영 여부 확인 가능 */
+  var VERSION="1.5.3"; /* 수정 배포 시 버전을 올리면 페이지 하단에서 반영 여부 확인 가능 */
   var LS="dosirak.local.";
   var DAYS=[["mon","월"],["tue","화"],["wed","수"],["thu","목"],["fri","금"]];
   /* 메뉴 색은 CFG.menus 각 항목의 color 필드에 저장됨 (menuColor 헬퍼로 조회) */
@@ -614,15 +615,15 @@
     if(pinned&&CFG.activeWeekUntil){var u=CFG.activeWeekUntil.split("-");untilTxt=" · "+(+u[1])+"/"+(+u[2])+"(목) 자동 해제";}
     var pin=el("div",{class:"savebar"});
     pin.appendChild(el("p",{class:"hint",style:"margin:0",html:
-      "메인 화면 표시 주: <b>"+(pinned?weekRange(pinned)+" (고정됨"+untilTxt+")":"자동 — 월~수는 이번 주, 목요일부터 다음 주")+"</b><br>‹ › 로 원하는 주로 이동한 뒤 저장을 누르면 참여자 메인 화면이 그 주로 바뀌어요. 고정은 목요일이 되면 자동으로 풀려요."}));
+      "메인 표시 주: <b>"+(pinned?weekRange(pinned)+" 고정"+untilTxt:"자동")+"</b>"+(pinned?"":" (월~수 이번 주 · 목~일 다음 주)")}));
     var pbtns=el("div",{style:"display:flex;gap:8px;align-items:center;flex-wrap:wrap"});
     if(pinned)pbtns.appendChild(el("button",{class:"smallbtn",title:"고정 해제 — 자동 표시(월~수 이번 주, 목요일부터 다음 주)로 복귀",onclick:function(){
       delete CFG.activeWeek; delete CFG.activeWeekUntil; saveConfig();
     }},"자동으로 되돌리기"));
-    if(pinned===WEEK)pbtns.appendChild(el("button",{class:"saveb",disabled:true,style:"opacity:.55;cursor:default"},"✓ 메인 화면에 적용됨"));
-    else pbtns.appendChild(el("button",{class:"saveb",onclick:function(){
+    if(pinned===WEEK)pbtns.appendChild(el("button",{class:"saveb sm",disabled:true,style:"opacity:.55;cursor:default"},"✓ 적용됨"));
+    else pbtns.appendChild(el("button",{class:"saveb sm",title:"‹ › 로 이동한 이 주를 참여자 메인 화면에 고정해요. 고정은 목요일이 되면 자동으로 풀려요.",onclick:function(){
       CFG.activeWeek=WEEK; CFG.activeWeekUntil=nextThursdayKey(); saveConfig();
-    }},"📌 이 주를 메인 화면에 저장"));
+    }},"📌 이 주를 메인에 저장"));
     pin.appendChild(pbtns);
     ab.appendChild(pin);
     nav.appendChild(ab); root.appendChild(nav);
