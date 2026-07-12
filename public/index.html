@@ -283,7 +283,7 @@
 (function(){
   "use strict";
   var API="/api/data";
-  var VERSION="1.2.0"; /* 수정 배포 시 버전을 올리면 페이지 하단에서 반영 여부 확인 가능 */
+  var VERSION="1.3.0"; /* 수정 배포 시 버전을 올리면 페이지 하단에서 반영 여부 확인 가능 */
   var LS="dosirak.local.";
   var DAYS=[["mon","월"],["tue","화"],["wed","수"],["thu","목"],["fri","금"]];
   /* 메뉴 색은 CFG.menus 각 항목의 color 필드에 저장됨 (menuColor 헬퍼로 조회) */
@@ -452,11 +452,11 @@
     var WD=["월","화","수","목","금","토","일"];
     var a=dayDate(WEEK,0), b=dayDate(WEEK,4);
     var rng=(a.getMonth()+1)+"월 "+a.getDate()+"일("+WD[0]+") – "+(b.getMonth()+1)+"월 "+b.getDate()+"일("+WD[4]+")";
-    var thisWeek=(WEEK===mondayKey(new Date()));
+    var calMon=mondayKey(new Date());
     var now=new Date(), ti=(now.getDay()+6)%7;
     var todayStr=(now.getMonth()+1)+"월 "+now.getDate()+"일 "+WD[ti]+"요일";
     p.appendChild(el("div",{class:"wkbanner"},
-      el("div",{class:"lab"},thisWeek?"이번 주 주문":"주문 주간"),
+      el("div",{class:"lab"},WEEK===calMon?"이번 주 주문":WEEK===shift(calMon,7)?"다음 주 주문":"주문 주간"),
       el("div",{class:"rng num"},rng),
       el("div",{class:"today num"},"오늘 "+todayStr)));
     p.appendChild(el("p",{class:"sub"},"👇 아래에서 본인 이름을 눌러 이번 주 메뉴를 고르세요"));
@@ -546,12 +546,15 @@
   }
   function quickFill(val){ DAYS.forEach(function(D){if(DAYSM[D[0]])setMyDay(D[0],val);}); saveMe(false).then(function(){render();}); }
   function go(n){ WEEK=shift(WEEK,n*7); refresh().then(render); }
-  /* 메인 화면 기본 주 — 관리자가 고정(activeWeek)했으면 그 주, 없으면 달력 기준 이번 주 */
-  function homeWeek(){return (CFG&&CFG.activeWeek)||mondayKey(new Date());}
+  /* 자동 표시 주 — 월~수는 이번 주, 목요일부터는 다음 주 (달력 기준) */
+  function autoWeek(){var now=new Date(),wd=(now.getDay()+6)%7,mk=mondayKey(now);return wd>=3?shift(mk,7):mk;}
+  /* 메인 화면 기본 주 — 관리자가 고정(activeWeek)했으면 그 주, 없으면 자동 */
+  function homeWeek(){return (CFG&&CFG.activeWeek)||autoWeek();}
   function weekSeg(){
     var seg=el("div",{class:"wkseg"});
-    if(WEEK!==homeWeek())
-      seg.appendChild(el("button",{class:"wktoday",title:"주문 받는 주로",onclick:function(){WEEK=homeWeek();refresh().then(render);}},homeWeek()===mondayKey(new Date())?"이번 주":"주문 주간"));
+    var calMon=mondayKey(new Date()),home=homeWeek();
+    if(WEEK!==home)
+      seg.appendChild(el("button",{class:"wktoday",title:"주문 받는 주로",onclick:function(){WEEK=homeWeek();refresh().then(render);}},home===calMon?"이번 주":home===shift(calMon,7)?"다음 주":"주문 주간"));
     seg.appendChild(el("button",{class:"wkarr",onclick:function(){go(-1);},"aria-label":"이전 주"},"‹"));
     seg.appendChild(el("span",{class:"wklabel num"},weekRange(WEEK)));
     seg.appendChild(el("button",{class:"wkarr",onclick:function(){go(1);},"aria-label":"다음 주"},"›"));
@@ -579,9 +582,9 @@
     var pinned=CFG.activeWeek||null;
     var pin=el("div",{class:"savebar"});
     pin.appendChild(el("p",{class:"hint",style:"margin:0",html:
-      "메인 화면 표시 주: <b>"+(pinned?weekRange(pinned)+" (고정됨)":"자동 — 달력 기준 이번 주")+"</b><br>‹ › 로 원하는 주로 이동한 뒤 저장을 누르면 참여자 메인 화면이 그 주로 바뀌어요."}));
+      "메인 화면 표시 주: <b>"+(pinned?weekRange(pinned)+" (고정됨)":"자동 — 월~수는 이번 주, 목요일부터 다음 주")+"</b><br>‹ › 로 원하는 주로 이동한 뒤 저장을 누르면 참여자 메인 화면이 그 주로 바뀌어요."}));
     var pbtns=el("div",{style:"display:flex;gap:8px;align-items:center;flex-wrap:wrap"});
-    if(pinned)pbtns.appendChild(el("button",{class:"smallbtn",title:"고정 해제 — 달력 기준 이번 주를 자동 표시",onclick:function(){
+    if(pinned)pbtns.appendChild(el("button",{class:"smallbtn",title:"고정 해제 — 자동 표시(월~수 이번 주, 목요일부터 다음 주)로 복귀",onclick:function(){
       delete CFG.activeWeek; saveConfig();
     }},"자동으로 되돌리기"));
     if(pinned===WEEK)pbtns.appendChild(el("button",{class:"saveb",disabled:true,style:"opacity:.55;cursor:default"},"✓ 메인 화면에 적용됨"));
@@ -873,7 +876,7 @@
   /* ---- boot ---- */
   (async function(){
     ME=null; try{ME=localStorage.getItem("dosirak.me");}catch(e){}
-    WEEK=mondayKey(new Date());
+    WEEK=autoWeek();
     await refresh();
     /* 관리자가 고정한 주가 있으면 메인 화면은 그 주를 보여줌 */
     if(CFG.activeWeek&&CFG.activeWeek!==WEEK){WEEK=CFG.activeWeek;await refresh();}
