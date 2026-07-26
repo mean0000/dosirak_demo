@@ -197,6 +197,33 @@
   .oline .oc b{color:var(--ink)}
   .oline .oa{font-weight:800;white-space:nowrap}
   .warnrow{margin-top:12px;padding:11px 14px;border-radius:10px;background:var(--accent-soft);color:var(--warn);font-size:.82rem;font-weight:700;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+  /* 주간 합계 (회사/별도 구분) */
+  .osum{margin-top:14px;padding:12px 15px;border-radius:11px;background:var(--surface-2);border:1px solid var(--border)}
+  .osum .r1{display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap;font-weight:700}
+  .osum .r1 b{font-size:1.3rem;font-weight:800;color:var(--accent-strong)}
+  .osum .r2{display:flex;justify-content:space-between;gap:8px 18px;flex-wrap:wrap;margin-top:6px;padding-top:8px;border-top:1px dashed var(--border);font-size:.86rem;font-weight:600;color:var(--ink-2)}
+  .osum .r2 b{color:var(--ink);font-weight:800}
+  .osum .r2 .sep b{color:var(--accent-strong)}
+  /* 별도 정산 블록 (예산 카드) */
+  .kpi.sep{background:var(--accent-soft);border-color:var(--accent)}
+  .seprow{display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap;font-size:.95rem;font-weight:800}
+  .seprow .num small{font-size:.78rem;font-weight:600;color:var(--ink-2)}
+  .seprow .amt{font-size:1.1rem;font-weight:800;color:var(--accent-strong)}
+  /* 주차별 전체 내역 표 */
+  .histwrap{overflow-x:auto}
+  table.htab{width:100%;border-collapse:collapse;font-size:.86rem;min-width:430px}
+  .htab th{font-size:.68rem;font-weight:700;color:var(--ink-3);text-transform:uppercase;letter-spacing:.03em;text-align:right;padding:4px 10px 8px;border-bottom:1px solid var(--border);white-space:nowrap}
+  .htab th:first-child{text-align:left}
+  .htab td{padding:9px 10px;border-bottom:1px dashed var(--border);text-align:right;white-space:nowrap;font-weight:600;color:var(--ink-2)}
+  .htab td:first-child{text-align:left;font-weight:800;color:var(--ink)}
+  .htab tbody tr{cursor:pointer}
+  .htab tbody tr:hover td{background:var(--surface-2)}
+  .htab tr.cur td{background:var(--accent-soft)}
+  .htab tr.empty td{color:var(--ink-3);font-weight:500}
+  .htab tr.empty td:first-child{color:var(--ink-3)}
+  .htab td.money{color:var(--ink);font-weight:700}
+  .htab td.sepc{color:var(--accent-strong);font-weight:800}
+  .htab tfoot td{border-bottom:none;border-top:2px solid var(--border-strong);font-weight:800;color:var(--ink)}
   .copybtn{display:inline-flex;align-items:center;gap:7px;background:var(--accent-strong);color:var(--on-accent);border:none;border-radius:10px;padding:10px 16px;font-size:.85rem;font-weight:700;cursor:pointer}
   .copybtn:hover{filter:brightness(1.06)}
   .smallbtn{font-size:.78rem;font-weight:700;padding:7px 12px;border-radius:8px;border:1px solid var(--border-strong);background:var(--surface);color:var(--ink-2);cursor:pointer}
@@ -289,7 +316,7 @@
 (function(){
   "use strict";
   var API="/api/data";
-  var VERSION="1.5.6"; /* 수정 배포 시 버전을 올리면 페이지 하단에서 반영 여부 확인 가능 */
+  var VERSION="1.6.0"; /* 수정 배포 시 버전을 올리면 페이지 하단에서 반영 여부 확인 가능 */
   var LS="dosirak.local.";
   var DAYS=[["mon","월"],["tue","화"],["wed","수"],["thu","목"],["fri","금"]];
   /* 메뉴 색은 CFG.menus 각 항목의 color 필드에 저장됨 (menuColor 헬퍼로 조회) */
@@ -299,6 +326,7 @@
   var weekCache={};
   var SETOPEN=false;
   var DRAG=null; /* 인원 드래그 중인 pid */
+  var HISTN=8; /* 주차별 전체 내역에 보여줄 주 수 (더 보기로 늘어남) */
 
   /* ---- utils ---- */
   var $=function(id){return document.getElementById(id);};
@@ -418,25 +446,28 @@
     CFG.people.forEach(function(p){var v=effRaw(p.id,dk);if(v===undefined)return;c.resp++;
       if(v==="none"){c.none++;}else{c[v]=(c[v]||0)+1;c.eat++;c.total+=price(v);}});return c;}
   function noResp(dk){var a=[];CFG.people.forEach(function(p){if(isChild(p.id))return;if(rawChoice(p.id,dk)===undefined)a.push(p.id);});return a;}
-  /* inc(pid): true면 합산에 포함. 생략 시 전원 */
-  function weekTotal(week,days,people,inc){var t=0;DAYS.forEach(function(D){if(!days[D[0]])return;
-    CFG.people.forEach(function(p){if(inc&&!inc(p.id))return;var v=choiceFrom(people,p.id,D[0]);if(v&&v!=="none")t+=price(v);});});return t;}
-  function curWeekTotal(){return weekTotal(WEEK,DAYSM,PEOPLE);}
-  function weekExcluded(){return weekTotal(WEEK,DAYSM,PEOPLE,isExcluded);}
+  function excludedPeople(){return CFG.people.filter(function(p){return isExcluded(p.id);});}
+  /* 한 주 데이터(days/people)에서 끼 수·전체·별도(예외 인원, 인원별)를 한 번에 집계 */
+  function weekAgg(days,ppl){var t={meals:0,all:0,exc:0,byPid:{}};
+    DAYS.forEach(function(D){if(!days||!days[D[0]])return;
+      CFG.people.forEach(function(p){var v=choiceFrom(ppl,p.id,D[0]);if(v&&v!=="none"){var pr=price(v);t.meals++;t.all+=pr;
+        if(isExcluded(p.id)){t.exc+=pr;t.byPid[p.id]=(t.byPid[p.id]||0)+pr;}}});});
+    return t;}
 
-  /* 한 번의 순회로 전체합계와 예외인원합계를 함께 반환 */
+  /* 한 번의 순회로 전체합계·예외인원합계(인원별 포함)를 함께 반환 */
   async function monthTotals(){
     var ref=dayDate(WEEK,0); var y=ref.getFullYear(),m=ref.getMonth();
     var first=new Date(y,m,1), last=new Date(y,m+1,0);
-    var mk=mondayKey(first), all=0, exc=0, guard=0;
+    var mk=mondayKey(first), all=0, exc=0, byPid={}, guard=0;
     while(parseKey(mk)<=last && guard<8){
       var d=weekCache[mk]||await apiGet(mk); weekCache[mk]=d;
       var days=d.days||{}, ppl=d.people||{};
       DAYS.forEach(function(D,i){if(!days[D[0]])return;var dd=dayDate(mk,i);if(dd.getMonth()!==m)return;
-        CFG.people.forEach(function(p){var v=choiceFrom(ppl,p.id,D[0]);if(v&&v!=="none"){var pr=price(v);all+=pr;if(isExcluded(p.id))exc+=pr;}});});
+        CFG.people.forEach(function(p){var v=choiceFrom(ppl,p.id,D[0]);if(v&&v!=="none"){var pr=price(v);all+=pr;
+          if(isExcluded(p.id)){exc+=pr;byPid[p.id]=(byPid[p.id]||0)+pr;}}});});
       mk=shift(mk,7); guard++;
     }
-    return {all:all, excluded:exc};
+    return {all:all, excluded:exc, byPid:byPid};
   }
 
   /* ---- persistence helpers ---- */
@@ -634,33 +665,53 @@
     var kc=el("div",{class:"card"}); var kb=el("div",{class:"card-b"});
     var kwrap=el("div",{class:"kpis"}); kb.appendChild(kwrap); kc.appendChild(el("div",{class:"card-h"},el("h2",{},"예산")));
     kc.appendChild(kb); root.appendChild(kc);
-    var wTot=curWeekTotal();
+    var wagg=weekAgg(DAYSM,PEOPLE), wTot=wagg.all;
     kwrap.appendChild(kpi("이 주 합계",won(wTot),"표시 중인 주"));
     var mkpi=kpi("이 달 누적","계산 중…","");
     kwrap.appendChild(mkpi);
     var period=CFG.budget.period, cap=budgetCap(), exN=excludedCount();
     var bud=el("div",{class:"kpi wide"});
     bud.appendChild(el("div",{class:"lab"},(period==="week"?"주":"월")+" 회사 예산 · 남은 금액"));
-    bud.appendChild(el("div",{class:"sub num",style:"margin:-2px 0 2px"},"1인 "+won(perPerson())+" × "+coveredCount()+"명"+(exN>0?" (예외 "+exN+"명 제외)":"")+" = "+won(cap)));
+    bud.appendChild(el("div",{class:"sub num",style:"margin:-2px 0 2px"},"1인 "+won(perPerson())+" × "+coveredCount()+"명"+(exN>0?" (별도 "+exN+"명 제외)":"")+" = "+won(cap)));
     var budVal=el("div",{class:"val num"}); bud.appendChild(budVal);
     var meter=el("div",{class:"meter"}); var mi=el("i"); meter.appendChild(mi); bud.appendChild(meter);
     var budSub=el("div",{class:"sub num"}); bud.appendChild(budSub);
-    var budExc=el("div",{class:"sub num",style:"color:var(--ink-3);margin-top:2px"}); bud.appendChild(budExc);
     kwrap.appendChild(bud);
     var todayIdx=(new Date().getDay()+6)%7;
     var todayInWeek=todayIdx<=4 && fmtKey(dayDate(WEEK,todayIdx))===todayKey();
     var todayActive=todayInWeek && DAYSM[DAYS[todayIdx][0]];
     kwrap.appendChild(kpi("오늘 주문", todayActive?won(dayAgg(DAYS[todayIdx][0]).total):"—",
       todayActive?(DAYS[todayIdx][1]+"요일 "+dayAgg(DAYS[todayIdx][0]).eat+"명"):(todayInWeek?"오늘 주문일 아님":"이번 주 아님")));
+    // 별도 정산 — 회사 예산 제외 인원의 밥값을 이름별로 또렷하게
+    var exPeople=excludedPeople(), sepMonthEls={};
+    if(exPeople.length){
+      var sep=el("div",{class:"kpi wide sep"});
+      sep.appendChild(el("div",{class:"lab"},"🧾 별도 정산 · 회사 예산 제외"));
+      exPeople.forEach(function(p){
+        var row=el("div",{class:"seprow"});
+        row.appendChild(el("span",{},p.name));
+        var amt=el("span",{class:"num"});
+        if(period==="week"){
+          amt.appendChild(el("b",{class:"amt"},"이 주 "+won(wagg.byPid[p.id]||0)));
+        }else{
+          amt.appendChild(el("small",{},"이 주 "+won(wagg.byPid[p.id]||0)+" · "));
+          sepMonthEls[p.id]=el("b",{class:"amt"},"이 달 계산 중…");
+          amt.appendChild(sepMonthEls[p.id]);
+        }
+        row.appendChild(amt); sep.appendChild(row);
+      });
+      kwrap.appendChild(sep);
+    }
     // compute budget async — all=전원 합계, exc=예외 인원 합계, company=회사 예산 사용액
-    (period==="week"?Promise.resolve({all:wTot,excluded:weekExcluded()}):monthTotals()).then(function(t){
+    (period==="week"?Promise.resolve({all:wTot,excluded:wagg.exc,byPid:wagg.byPid}):monthTotals()).then(function(t){
       var used=t.all, exc=t.excluded, company=used-exc;
       mkpi.querySelector(".val").textContent=won(used);
+      if(exc>0)mkpi.querySelector(".sub").textContent="회사 "+won(company)+" · 별도 "+won(exc);
       var remain=cap-company, ratio=cap>0?company/cap:0;
       budVal.textContent=won(remain); budVal.style.color=remain<0?"var(--crit)":"var(--ink)";
       mi.style.width=Math.min(100,ratio*100)+"%"; mi.style.background=ratio>=1?"var(--crit)":ratio>=.75?"var(--warn)":"var(--good)";
       budSub.textContent=won(company)+" / "+won(cap)+" ("+Math.round(ratio*100)+"%)";
-      budExc.textContent = exN>0 ? ("전체 "+won(used)+" · 예외 "+exN+"명 별도 "+won(exc)) : "";
+      exPeople.forEach(function(p){var n=sepMonthEls[p.id];if(n)n.textContent="이 달 "+won((t.byPid&&t.byPid[p.id])||0);});
     });
 
     // lobby
@@ -724,6 +775,20 @@
         ob.appendChild(line);
         totalMissing+=noResp(D[0]).length;
       });
+      // 주간 합계 — 회사 부담 / 별도 인원을 나눠서 크게
+      if(wagg.meals>0){
+        var osum=el("div",{class:"osum"});
+        osum.appendChild(el("div",{class:"r1"},
+          el("span",{},"주간 합계 · "+wagg.meals+"끼"),
+          el("b",{class:"num"},won(wagg.all))));
+        if(wagg.exc>0){
+          var sepNames=exPeople.filter(function(p){return wagg.byPid[p.id];}).map(function(p){return p.name;}).join(", ");
+          osum.appendChild(el("div",{class:"r2"},
+            el("span",{},"🏢 회사 부담 ",el("b",{class:"num"},won(wagg.all-wagg.exc))),
+            el("span",{class:"sep"},"👤 "+sepNames+" 별도 ",el("b",{class:"num"},won(wagg.exc)))));
+        }
+        ob.appendChild(osum);
+      }
       var missPeople={}; DAYS.forEach(function(D){if(DAYSM[D[0]])noResp(D[0]).forEach(function(pid){missPeople[pid]=1;});});
       var missN=Object.keys(missPeople).length;
       if(missN>0){
@@ -732,12 +797,66 @@
           el("button",{class:"smallbtn",onclick:fillMissing},"미응답 전원 도시락 처리")));
       }
     }
+    // 주차별 전체 내역 — 표시 주부터 과거로 쭉
+    ob.appendChild(el("div",{class:"mut3",style:"font-size:.72rem;font-weight:700;letter-spacing:.04em;text-transform:uppercase;margin:18px 0 8px;padding-top:14px;border-top:1px solid var(--border)"},"주차별 전체 내역"));
+    var histHost=el("div",{class:"histwrap"},el("span",{class:"mut3",style:"font-size:.82rem"},"불러오는 중…"));
+    ob.appendChild(histHost);
+    var moreBar=el("div",{style:"margin-top:10px;display:flex;align-items:center;gap:10px;flex-wrap:wrap"});
+    moreBar.appendChild(el("button",{class:"smallbtn",onclick:function(){HISTN+=8;render();}},"+ 이전 주 더 보기"));
+    moreBar.appendChild(el("span",{class:"mut3",style:"font-size:.75rem"},"주를 누르면 그 주 상세로 이동해요"));
+    ob.appendChild(moreBar);
+    loadHistory(histHost);
     oc.appendChild(ob); root.appendChild(oc);
 
     // settings
     root.appendChild(renderSettings());
   }
   function kpi(lab,val,sub){return el("div",{class:"kpi"},el("div",{class:"lab"},lab),el("div",{class:"val num"},val),el("div",{class:"sub"},sub));}
+
+  /* 주차별 전체 내역 — 표시 주부터 과거로 HISTN주를 불러와 표로 */
+  function loadHistory(host){
+    var weeks=[]; for(var i=0;i<HISTN;i++)weeks.push(shift(WEEK,-7*i));
+    var exPeople=excludedPeople(), hasSep=exPeople.length>0;
+    var sepHead=hasSep?exPeople.map(function(p){return p.name;}).join("·")+" 별도":null;
+    Promise.all(weeks.map(function(w){
+      if(weekCache[w])return Promise.resolve(weekCache[w]);
+      return apiGet(w).then(function(d){weekCache[w]=d;return d;});
+    })).then(function(ds){
+      if(!host.isConnected)return; /* 그 사이 화면이 바뀌었으면 무시 */
+      host.innerHTML="";
+      var tbl=el("table",{class:"htab"});
+      var thr=el("tr");
+      ["주차","주문","전체"].forEach(function(t){thr.appendChild(el("th",{},t));});
+      if(hasSep){thr.appendChild(el("th",{},"회사"));thr.appendChild(el("th",{},sepHead));}
+      tbl.appendChild(el("thead",{},thr));
+      var tb=el("tbody"), sum={meals:0,all:0,exc:0};
+      ds.forEach(function(d,i){
+        var w=weeks[i], a=weekAgg(d.days||{},d.people||{});
+        sum.meals+=a.meals; sum.all+=a.all; sum.exc+=a.exc;
+        var tr=el("tr",{class:w===WEEK?"cur":(a.meals===0?"empty":""),title:"이 주 상세 보기",
+          onclick:function(){WEEK=w;refresh().then(render);}});
+        tr.appendChild(el("td",{class:"num"},weekRange(w)+(w===WEEK?" ◂ 보는 중":"")));
+        tr.appendChild(el("td",{class:"num"},a.meals?a.meals+"끼":"—"));
+        tr.appendChild(el("td",{class:"num money"},a.meals?won(a.all):"—"));
+        if(hasSep){
+          tr.appendChild(el("td",{class:"num"},a.meals?won(a.all-a.exc):"—"));
+          tr.appendChild(el("td",{class:"num sepc"},a.meals?won(a.exc):"—"));
+        }
+        tb.appendChild(tr);
+      });
+      tbl.appendChild(tb);
+      var tfr=el("tr");
+      tfr.appendChild(el("td",{},"최근 "+HISTN+"주 합계"));
+      tfr.appendChild(el("td",{class:"num"},sum.meals+"끼"));
+      tfr.appendChild(el("td",{class:"num"},won(sum.all)));
+      if(hasSep){
+        tfr.appendChild(el("td",{class:"num"},won(sum.all-sum.exc)));
+        tfr.appendChild(el("td",{class:"num sepc"},won(sum.exc)));
+      }
+      tbl.appendChild(el("tfoot",{},tfr));
+      host.appendChild(tbl);
+    });
+  }
 
   function fillMissing(){
     var miss={}; DAYS.forEach(function(D){if(DAYSM[D[0]])noResp(D[0]).forEach(function(pid){miss[pid]=1;});});
