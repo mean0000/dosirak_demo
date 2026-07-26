@@ -327,7 +327,7 @@
 (function(){
   "use strict";
   var API="/api/data";
-  var VERSION="1.7.1"; /* 수정 배포 시 버전을 올리면 페이지 하단에서 반영 여부 확인 가능 */
+  var VERSION="1.7.2"; /* 수정 배포 시 버전을 올리면 페이지 하단에서 반영 여부 확인 가능 */
   var LS="dosirak.local.";
   var DAYS=[["mon","월"],["tue","화"],["wed","수"],["thu","목"],["fri","금"]];
   /* 메뉴 색은 CFG.menus 각 항목의 color 필드에 저장됨 (menuColor 헬퍼로 조회) */
@@ -742,7 +742,10 @@
     // lobby
     var lc=el("div",{class:"card"});
     var done=CFG.people.filter(function(p){return pStatus(p.id)==="done";}).length;
-    lc.appendChild(el("div",{class:"card-h"},el("h2",{},"참여 현황"),el("span",{class:"mut",style:"font-weight:700;font-size:.85rem"},done+" / "+CFG.people.length+" 완료")));
+    lc.appendChild(el("div",{class:"card-h"},el("h2",{},"참여 현황"),
+      el("div",{style:"display:flex;align-items:center;gap:12px;flex-wrap:wrap"},
+        el("span",{class:"mut",style:"font-weight:700;font-size:.85rem"},done+" / "+CFG.people.length+" 완료"),
+        weekSeg())));
     var lb=el("div",{class:"card-b"}); var lob=el("div",{class:"attend"});
     function stPill(p){var st=pStatus(p.id),child=isChild(p.id);
       var txt=child?"따라감":st==="done"?"완료":st==="wip"?"작성중":"미시작";
