@@ -197,13 +197,18 @@
   .oline .oc b{color:var(--ink)}
   .oline .oa{font-weight:800;white-space:nowrap}
   .warnrow{margin-top:12px;padding:11px 14px;border-radius:10px;background:var(--accent-soft);color:var(--warn);font-size:.82rem;font-weight:700;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
-  /* 주간 합계 (회사/별도 구분) */
+  /* 합계 블록 — 회사 부담·별도를 먼저 크게, 그 아래 총 합계 */
   .osum{margin-top:14px;padding:12px 15px;border-radius:11px;background:var(--surface-2);border:1px solid var(--border)}
-  .osum .r1{display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap;font-weight:700}
-  .osum .r1 b{font-size:1.3rem;font-weight:800;color:var(--accent-strong)}
-  .osum .r2{display:flex;justify-content:space-between;gap:8px 18px;flex-wrap:wrap;margin-top:6px;padding-top:8px;border-top:1px dashed var(--border);font-size:.86rem;font-weight:600;color:var(--ink-2)}
-  .osum .r2 b{color:var(--ink);font-weight:800}
-  .osum .r2 .sep b{color:var(--accent-strong)}
+  .osum .obrk{display:flex;gap:8px;flex-wrap:wrap}
+  .osum .obi{flex:1 1 132px;background:var(--surface);border:1px solid var(--border);border-radius:9px;padding:8px 11px;display:flex;flex-direction:column;gap:1px}
+  .osum .obi .obl{font-size:.72rem;font-weight:700;color:var(--ink-2)}
+  .osum .obi .obv{font-size:1.05rem;font-weight:800;color:var(--ink)}
+  .osum .obi.sepb{border-color:var(--accent);background:var(--accent-soft)}
+  .osum .obi.sepb .obl{color:var(--accent-strong)}
+  .osum .obi.sepb .obv{color:var(--accent-strong)}
+  .osum .ototal{display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap;font-weight:700;margin-top:9px;padding-top:9px;border-top:1px dashed var(--border)}
+  .osum .ototal b{font-size:1.3rem;font-weight:800;color:var(--accent-strong)}
+  .osum .ototal:first-child{margin-top:0;padding-top:0;border-top:none}
   /* 별도 정산 블록 (예산 카드) */
   .kpi.sep{background:var(--accent-soft);border-color:var(--accent)}
   .seprow{display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap;font-size:.95rem;font-weight:800}
@@ -225,6 +230,8 @@
   .calwk{align-items:flex-end;justify-content:center;background:var(--surface-3)}
   .calwk .cv{font-size:.82rem;font-weight:800;color:var(--accent-strong)}
   .calwk .cm{font-size:.66rem;font-weight:600;color:var(--ink-2)}
+  .calwk .cm.sepl{color:var(--accent-strong);font-weight:700}
+  .calwk .tot{margin-top:3px;padding-top:3px;border-top:1px dashed var(--border);text-align:right}
   .crow.body:hover .calc,.crow.body:hover .calwk{border-color:var(--border-strong)}
   .crow.cur .calc,.crow.cur .calwk{background:var(--accent-soft);border-color:var(--accent)}
   .crow.cur .calc.out{background:none}
@@ -320,7 +327,7 @@
 (function(){
   "use strict";
   var API="/api/data";
-  var VERSION="1.7.0"; /* 수정 배포 시 버전을 올리면 페이지 하단에서 반영 여부 확인 가능 */
+  var VERSION="1.7.1"; /* 수정 배포 시 버전을 올리면 페이지 하단에서 반영 여부 확인 가능 */
   var LS="dosirak.local.";
   var DAYS=[["mon","월"],["tue","화"],["wed","수"],["thu","목"],["fri","금"]];
   /* 메뉴 색은 CFG.menus 각 항목의 color 필드에 저장됨 (menuColor 헬퍼로 조회) */
@@ -451,6 +458,20 @@
       if(v==="none"){c.none++;}else{c[v]=(c[v]||0)+1;c.eat++;c.total+=price(v);}});return c;}
   function noResp(dk){var a=[];CFG.people.forEach(function(p){if(isChild(p.id))return;if(rawChoice(p.id,dk)===undefined)a.push(p.id);});return a;}
   function excludedPeople(){return CFG.people.filter(function(p){return isExcluded(p.id);});}
+  function exNames(){return excludedPeople().map(function(p){return p.name;}).join(", ");}
+  /* 합계 블록 — 회사 부담·별도 타일을 먼저, 그 아래 총 합계 (names 없으면 총 합계만) */
+  function sumBlock(title,meals,all,exc,names,style){
+    var f=el("div",{class:"osum",style:style||null});
+    if(names){
+      f.appendChild(el("div",{class:"obrk"},
+        el("div",{class:"obi"},el("span",{class:"obl"},"🏢 회사 부담"),el("b",{class:"obv num"},won(all-exc))),
+        el("div",{class:"obi sepb"},el("span",{class:"obl"},"👤 "+names+" 별도"),el("b",{class:"obv num"},won(exc)))));
+    }
+    f.appendChild(el("div",{class:"ototal"},
+      el("span",{},title+" · "+meals+"끼"),
+      el("b",{class:"num"},won(all))));
+    return f;
+  }
   /* 한 주 데이터(days/people)에서 끼 수·전체·별도(예외 인원, 인원별)를 한 번에 집계 */
   function weekAgg(days,ppl){var t={meals:0,all:0,exc:0,byPid:{}};
     DAYS.forEach(function(D){if(!days||!days[D[0]])return;
@@ -779,19 +800,9 @@
         ob.appendChild(line);
         totalMissing+=noResp(D[0]).length;
       });
-      // 주간 합계 — 회사 부담 / 별도 인원을 나눠서 크게
+      // 주간 합계 — 회사 부담·별도를 먼저 크게, 그 아래 총 합계
       if(wagg.meals>0){
-        var osum=el("div",{class:"osum"});
-        osum.appendChild(el("div",{class:"r1"},
-          el("span",{},"주간 합계 · "+wagg.meals+"끼"),
-          el("b",{class:"num"},won(wagg.all))));
-        if(wagg.exc>0){
-          var sepNames=exPeople.filter(function(p){return wagg.byPid[p.id];}).map(function(p){return p.name;}).join(", ");
-          osum.appendChild(el("div",{class:"r2"},
-            el("span",{},"🏢 회사 부담 ",el("b",{class:"num"},won(wagg.all-wagg.exc))),
-            el("span",{class:"sep"},"👤 "+sepNames+" 별도 ",el("b",{class:"num"},won(wagg.exc)))));
-        }
-        ob.appendChild(osum);
+        ob.appendChild(sumBlock("주간 총 합계",wagg.meals,wagg.all,wagg.exc,exPeople.length?exNames():null));
       }
       var missPeople={}; DAYS.forEach(function(D){if(DAYSM[D[0]])noResp(D[0]).forEach(function(pid){missPeople[pid]=1;});});
       var missN=Object.keys(missPeople).length;
@@ -849,7 +860,7 @@
       DAYS.forEach(function(D){hd.appendChild(el("div",{class:"chd"},D[1]));});
       hd.appendChild(el("div",{class:"chd",style:"text-align:right;padding-right:4px"},"주 합계"));
       cal.appendChild(hd);
-      var sum={meals:0,all:0,exc:0,byPid:{}}, tk=todayKey();
+      var sum={meals:0,all:0,exc:0}, tk=todayKey();
       ds.forEach(function(d,i){
         var w=wks[i], days=d.days||{}, ppl=d.people||{};
         var row=el("div",{class:"crow body"+(w===WEEK?" cur":""),title:weekRange(w)+" 주 상세 보기",
@@ -865,7 +876,6 @@
               cell.appendChild(el("b",{class:"cv num"},won(da.all)));
               cell.appendChild(el("small",{class:"cm num"},da.meals+"끼"));
               ws.meals+=da.meals; ws.all+=da.all; ws.exc+=da.exc;
-              for(var pid in da.byPid)sum.byPid[pid]=(sum.byPid[pid]||0)+da.byPid[pid];
             }
           }
           row.appendChild(cell);
@@ -873,25 +883,23 @@
         sum.meals+=ws.meals; sum.all+=ws.all; sum.exc+=ws.exc;
         var wc=el("div",{class:"calwk"});
         if(ws.meals>0){
-          wc.appendChild(el("b",{class:"cv num"},won(ws.all)));
-          wc.appendChild(el("small",{class:"cm num"},ws.meals+"끼"+(hasSep&&ws.exc>0?" · 별도 "+won(ws.exc):"")));
+          if(hasSep){
+            wc.appendChild(el("small",{class:"cm num"},"회사 "+won(ws.all-ws.exc)));
+            wc.appendChild(el("small",{class:"cm num"+(ws.exc>0?" sepl":"")},"별도 "+won(ws.exc)));
+            wc.appendChild(el("div",{class:"tot"},
+              el("b",{class:"cv num"},won(ws.all)),
+              el("small",{class:"cm num"}," · "+ws.meals+"끼")));
+          }else{
+            wc.appendChild(el("b",{class:"cv num"},won(ws.all)));
+            wc.appendChild(el("small",{class:"cm num"},ws.meals+"끼"));
+          }
         }else wc.appendChild(el("small",{class:"cm"},"—"));
         row.appendChild(wc);
         cal.appendChild(row);
       });
       host.appendChild(el("div",{class:"calwrap"},cal));
-      // 이 달 합계 — 회사/별도 구분해서 크게
-      var f=el("div",{class:"osum",style:"margin-top:10px"});
-      f.appendChild(el("div",{class:"r1"},
-        el("span",{},(m+1)+"월 합계 · "+sum.meals+"끼"),
-        el("b",{class:"num"},won(sum.all))));
-      if(hasSep&&sum.exc>0){
-        var nm=exPeople.filter(function(p){return sum.byPid[p.id];}).map(function(p){return p.name;}).join(", ");
-        f.appendChild(el("div",{class:"r2"},
-          el("span",{},"🏢 회사 부담 ",el("b",{class:"num"},won(sum.all-sum.exc))),
-          el("span",{class:"sep"},"👤 "+nm+" 별도 ",el("b",{class:"num"},won(sum.exc)))));
-      }
-      host.appendChild(f);
+      // 이 달 합계 — 회사 부담·별도를 먼저, 그 아래 총 합계
+      host.appendChild(sumBlock((m+1)+"월 총 합계",sum.meals,sum.all,sum.exc,hasSep?exNames():null,"margin-top:10px"));
     });
   }
 
