@@ -181,6 +181,18 @@
   .daychip{display:inline-block;max-width:100%;font-size:.75rem;font-weight:700;padding:5px 9px;border-radius:8px;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .daychip.none{background:var(--surface-3);color:var(--ink-2)}
   .daynull{color:var(--ink-3);font-weight:800;font-size:.9rem}
+  button.daychip{border:none;cursor:pointer;font-family:inherit;transition:.12s}
+  button.daychip:hover{filter:brightness(1.07);transform:translateY(-1px)}
+  button.daychip.pend{background:var(--surface);border:1px dashed var(--border-strong);color:var(--ink-3);min-width:34px}
+  /* 관리자 메뉴 선택 팝오버 */
+  .pop{position:fixed;z-index:80;min-width:168px;background:var(--surface);border:1px solid var(--border-strong);border-radius:12px;box-shadow:var(--shadow);padding:6px;display:none;flex-direction:column;gap:2px}
+  .pop.show{display:flex}
+  .pop .ph{font-size:.68rem;font-weight:700;color:var(--ink-3);padding:5px 9px 3px;letter-spacing:.02em}
+  .pop .opt{display:flex;align-items:center;gap:9px;padding:10px 11px;border-radius:8px;border:none;background:none;color:var(--ink);font-size:.9rem;font-weight:700;cursor:pointer;text-align:left;width:100%}
+  .pop .opt:hover{background:var(--surface-2)}
+  .pop .opt .sw{width:13px;height:13px;border-radius:4px;flex:none}
+  .pop .opt .ck{margin-left:auto;color:var(--accent-strong);font-weight:800}
+  .pop .opt.clear{color:var(--ink-3);border-top:1px solid var(--border);border-radius:0 0 8px 8px;margin-top:3px;padding-top:11px;font-size:.82rem}
   .stpill{display:inline-flex;align-items:center;gap:6px;font-size:.72rem;font-weight:800;padding:5px 11px;border-radius:99px;white-space:nowrap}
   .stpill .sdot{width:7px;height:7px;border-radius:50%;background:currentColor;flex:none}
   .st-done{background:var(--good-soft);color:var(--good)}
@@ -327,7 +339,7 @@
 (function(){
   "use strict";
   var API="/api/data";
-  var VERSION="1.7.2"; /* 수정 배포 시 버전을 올리면 페이지 하단에서 반영 여부 확인 가능 */
+  var VERSION="1.8.0"; /* 수정 배포 시 버전을 올리면 페이지 하단에서 반영 여부 확인 가능 */
   var LS="dosirak.local.";
   var DAYS=[["mon","월"],["tue","화"],["wed","수"],["thu","목"],["fri","금"]];
   /* 메뉴 색은 CFG.menus 각 항목의 color 필드에 저장됨 (menuColor 헬퍼로 조회) */
@@ -763,10 +775,18 @@
       CFG.people.forEach(function(p){
         var row=el("div",{class:"arow",style:"grid-template-columns:"+cols});
         row.appendChild(nameCell(p));
-        actv.forEach(function(a){var v=effRaw(p.id,a.D[0]);
-          var chip = v===undefined ? el("span",{class:"daynull",title:"미응답"},"–")
-                   : v==="none" ? el("span",{class:"daychip none"},"안먹음")
-                   : el("span",{class:"daychip",title:label(v),style:"background:"+menuColor(v)},slabel(v));
+        actv.forEach(function(a){var dk=a.D[0], v=effRaw(p.id,dk), chip;
+          if(isChild(p.id)){ /* 자식은 부모를 따라가므로 표시만 */
+            var kin=personName(rootPerson(p.id))+" 따라감";
+            chip = v===undefined ? el("span",{class:"daynull",title:"미응답 · "+kin},"–")
+                 : v==="none" ? el("span",{class:"daychip none",title:kin},"안먹음")
+                 : el("span",{class:"daychip",title:label(v)+" · "+kin,style:"background:"+menuColor(v)},slabel(v));
+          }else{ /* 관리자가 눌러서 바로 수정 */
+            var pk=function(e){openAdminPick(p.id,dk,e.currentTarget);};
+            chip = v===undefined ? el("button",{class:"daychip pend",title:"미응답 · 눌러서 지정",onclick:pk},"–")
+                 : v==="none" ? el("button",{class:"daychip none",title:"안 먹음 · 눌러서 변경",onclick:pk},"안먹음")
+                 : el("button",{class:"daychip",title:label(v)+" · 눌러서 변경",style:"background:"+menuColor(v),onclick:pk},slabel(v));
+          }
           row.appendChild(el("div",{class:"acell"},chip));
         });
         row.appendChild(el("div",{class:"acell"},stPill(p)));
@@ -903,6 +923,43 @@
       host.appendChild(el("div",{class:"calwrap"},cal));
       // 이 달 합계 — 회사 부담·별도를 먼저, 그 아래 총 합계
       host.appendChild(sumBlock((m+1)+"월 총 합계",sum.meals,sum.all,sum.exc,hasSep?exNames():null,"margin-top:10px"));
+    });
+  }
+
+  /* ---- 관리자용 메뉴 수정 팝오버 (참여 현황 칸 클릭) ---- */
+  var pop=el("div",{class:"pop"}), popOpen=false, popAnchor=null;
+  document.body.appendChild(pop);
+  function closePop(){popOpen=false;popAnchor=null;pop.classList.remove("show");}
+  function dayOf(dk){for(var i=0;i<DAYS.length;i++)if(DAYS[i][0]===dk)return DAYS[i];return null;}
+  function openAdminPick(pid,dk,anchor){
+    if(popOpen&&popAnchor===anchor){closePop();return;}
+    popAnchor=anchor; popOpen=true;
+    var cur=rawChoice(pid,dk);
+    pop.innerHTML="";
+    pop.appendChild(el("div",{class:"ph"},personName(pid)+" · "+dayOf(dk)[1]+"요일"));
+    CFG.menus.concat([{id:"none"}]).forEach(function(o){
+      pop.appendChild(el("button",{class:"opt",onclick:function(){closePop();setAdminChoice(pid,dk,o.id);}},
+        el("i",{class:"sw",style:"background:"+menuColor(o.id)+(o.id==="none"?";border:1px solid var(--border-strong)":"")}),
+        label(o.id), cur===o.id?el("span",{class:"ck"},"✓"):null));
+    });
+    if(cur!==undefined)pop.appendChild(el("button",{class:"opt clear",onclick:function(){closePop();setAdminChoice(pid,dk,null);}},"↺ 미응답으로 지우기"));
+    pop.classList.add("show");
+    var r=anchor.getBoundingClientRect(),pw=pop.offsetWidth,ph=pop.offsetHeight;
+    var left=Math.max(8,Math.min(r.left,window.innerWidth-pw-8));
+    var top=r.bottom+4; if(top+ph>window.innerHeight-8)top=Math.max(8,r.top-ph-4);
+    pop.style.left=left+"px"; pop.style.top=top+"px";
+  }
+  document.addEventListener("click",function(e){if(!popOpen)return;if(pop.contains(e.target))return;if(popAnchor&&popAnchor.contains(e.target))return;closePop();},true);
+  document.addEventListener("keydown",function(e){if(e.key==="Escape"&&popOpen)closePop();});
+  window.addEventListener("scroll",function(){if(popOpen)closePop();},true);
+  window.addEventListener("resize",function(){if(popOpen)closePop();});
+  function setAdminChoice(pid,dk,val){
+    var r=PEOPLE[pid]||(PEOPLE[pid]={choices:{},submitted:false});
+    r.choices=r.choices||{};
+    if(val===null)delete r.choices[dk]; else r.choices[dk]=val;
+    apiPost({op:"choice",week:WEEK,pid:pid,choices:r.choices,submitted:r.submitted,at:new Date().toISOString()}).then(function(){
+      toast(personName(pid)+" "+dayOf(dk)[1]+"요일 → "+(val===null?"미응답":label(val)));
+      render();
     });
   }
 
